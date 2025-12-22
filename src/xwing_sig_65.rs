@@ -15,7 +15,7 @@ use libcrux_ml_dsa::ml_dsa_65::{
 use rand_core::{CryptoRng, RngCore};
 use sha3::digest::{Digest, ExtendableOutput, Update, XofReader};
 use sha3::{Sha3_256, Shake256};
-use zeroize::ZeroizeOnDrop;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const ML_PK_SIZE: usize = 1952; // Approximate size for ML-DSA-65 public key
 const ED_PK_SIZE: usize = 32;
@@ -172,10 +172,14 @@ fn expand_seed(seed: &[u8; MASTER_SEED_SIZE]) -> (MLDSA65KeyPair, EdSigningKey) 
     let mut reader = hasher.finalize_xof();
     let mut expanded = [0u8; 64];
     reader.read(&mut expanded);
-    let ml_seed: [u8; 32] = expanded[..32].try_into().unwrap();
-    let ed_seed: [u8; 32] = expanded[32..].try_into().unwrap();
+    let mut ml_seed: [u8; 32] = expanded[..32].try_into().unwrap();
+    let mut ed_seed: [u8; 32] = expanded[32..].try_into().unwrap();
+    expanded.zeroize();
     let kp_ml = generate_key_pair(ml_seed);
-    let secret_ed = ed_seed;
+    ml_seed.zeroize();
+    let mut secret_ed = ed_seed;
     let sk_ed = EdSigningKey::from(&secret_ed);
+    secret_ed.zeroize();
+    ed_seed.zeroize();
     (kp_ml, sk_ed)
 }
