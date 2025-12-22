@@ -157,7 +157,7 @@ impl TryFrom<&[u8]> for XwingSig65Signature {
     }
 }
 
-pub fn generate_keypair<R: CryptoRng + RngCore>(
+pub fn generate_keypair_xwing_sig_65<R: CryptoRng + RngCore>(
     rng: &mut R,
 ) -> (XwingSig65SigningKey, XwingSig65VerifyingKey) {
     let mut seed = [0u8; MASTER_SEED_SIZE];

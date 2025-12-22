@@ -1,7 +1,7 @@
 use rand_chacha::ChaCha12Rng;
 use rand_core::SeedableRng;
 use sha3::{Digest, Sha3_256};
-use xwing_sig::*;
+use xwing_sig::combiner;
 
 fn rng() -> ChaCha12Rng {
     ChaCha12Rng::from_seed([0u8; 32])
@@ -9,8 +9,8 @@ fn rng() -> ChaCha12Rng {
 
 #[cfg(test)]
 mod combiner_tests {
-    use super::*;
     use sha3::{Digest, Sha3_256};
+    use xwing_sig::combiner;
 
     #[test]
     fn test_combiner_consistency() {
@@ -50,7 +50,7 @@ mod combiner_tests {
         let plain_hash = Sha3_256::new()
             .chain_update(sig_ml)
             .chain_update(sig_ed.to_bytes().as_ref())
-            .chain_update(&message_hash)
+            .chain_update(message_hash)
             .finalize();
 
         assert_ne!(combined, plain_hash.as_slice());
@@ -138,7 +138,8 @@ fn test_serialization_roundtrip_65() {
     let pk_bytes = pk.to_bytes();
     let sig_bytes = sig.to_bytes();
 
-    let pk_deserialized = XwingSig65VerifyingKey::from(&pk_bytes[..VERIFYING_KEY_SIZE].try_into().unwrap());
+    let pk_deserialized =
+        XwingSig65VerifyingKey::from(&pk_bytes[..VERIFYING_KEY_SIZE].try_into().unwrap());
     let sig_deserialized = XwingSig65Signature::try_from(&sig_bytes[..]).unwrap();
 
     assert_eq!(pk.to_bytes(), pk_deserialized.to_bytes());
@@ -273,7 +274,8 @@ fn test_verify_wrong_key_44() {
 fn test_generate_keypair_87() {
     use xwing_sig::xwing_sig_87::*;
     let mut rng = rng();
-    let (sk, pk) = generate_keypair_xwing_sig_65(&mut rng);
+    let (sk, pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
     assert_eq!(sk.verifying_key().to_bytes(), pk.to_bytes());
 }
 
@@ -281,7 +283,8 @@ fn test_generate_keypair_87() {
 fn test_sign_verify_roundtrip_87() {
     use xwing_sig::xwing_sig_87::*;
     let mut rng = rng();
-    let (sk, pk) = generate_keypair_xwing_sig_65(&mut rng);
+    let (sk, pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
     let message = b"Hello, world!";
     let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
@@ -291,7 +294,8 @@ fn test_sign_verify_roundtrip_87() {
 fn test_verify_invalid_message_87() {
     use xwing_sig::xwing_sig_87::*;
     let mut rng = rng();
-    let (sk, pk) = generate_keypair_xwing_sig_65(&mut rng);
+    let (sk, pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
     let message = b"Hello, world!";
     let wrong_message = b"Goodbye, world!";
     let sig = sk.sign(message, &mut rng).unwrap();
@@ -302,7 +306,8 @@ fn test_verify_invalid_message_87() {
 fn test_verify_tampered_signature_87() {
     use xwing_sig::xwing_sig_87::*;
     let mut rng = rng();
-    let (sk, pk) = generate_keypair_xwing_sig_65(&mut rng);
+    let (sk, pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
     let message = b"Hello, world!";
     let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
@@ -316,7 +321,8 @@ fn test_verify_tampered_signature_87() {
 fn test_verify_binding_tag_mismatch_87() {
     use xwing_sig::xwing_sig_87::*;
     let mut rng = rng();
-    let (sk, pk) = generate_keypair_xwing_sig_65(&mut rng);
+    let (sk, pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
     let message = b"Hello, world!";
     let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
@@ -330,7 +336,8 @@ fn test_verify_binding_tag_mismatch_87() {
 fn test_serialization_roundtrip_87() {
     use xwing_sig::xwing_sig_87::*;
     let mut rng = rng();
-    let (sk, pk) = generate_keypair_xwing_sig_65(&mut rng);
+    let (sk, pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
     let message = b"Hello, world!";
     let sig = sk.sign(message, &mut rng).unwrap();
 
@@ -351,8 +358,10 @@ fn test_deterministic_keys_from_seed_87() {
     use xwing_sig::xwing_sig_87::*;
     let seed1 = [1u8; 32];
     let seed2 = [1u8; 32];
-    let pk1 = XwingSig87SigningKey::new(seed1).verifying_key();
-    let pk2 = XwingSig87SigningKey::new(seed2).verifying_key();
+    let sk1: XwingSig87SigningKey = XwingSig87SigningKey::new(seed1);
+    let sk2: XwingSig87SigningKey = XwingSig87SigningKey::new(seed2);
+    let pk1 = sk1.verifying_key();
+    let pk2 = sk2.verifying_key();
     assert!(pk1 == pk2, "Verifying keys should be equal");
 }
 
@@ -360,8 +369,10 @@ fn test_deterministic_keys_from_seed_87() {
 fn test_verify_wrong_key_87() {
     use xwing_sig::xwing_sig_87::*;
     let mut rng = rng();
-    let (sk, pk) = generate_keypair_xwing_sig_65(&mut rng);
-    let (_wrong_sk, wrong_pk) = generate_keypair_xwing_sig_65(&mut rng);
+    let (sk, pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
+    let (_wrong_sk, wrong_pk): (XwingSig87SigningKey, XwingSig87VerifyingKey) =
+        generate_keypair_xwing_sig_87(&mut rng);
     let message = b"Hello, world!";
     let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
@@ -373,12 +384,12 @@ fn test_combiner_function() {
     let sig_ml = b"mock_ml_sig";
     let sig_ed = ed25519_dalek::Signature::from_bytes(&[0u8; 64]);
     let message_hash = Sha3_256::digest(b"message");
-    let result = combiner::combiner(sig_ml, sig_ed.to_bytes().as_ref(), &message_hash);
+    let result = combiner(sig_ml, sig_ed.to_bytes().as_ref(), &message_hash);
     // Compute expected tag manually
     let mut hasher = Sha3_256::new();
     hasher.update(sig_ml);
     hasher.update(sig_ed.to_bytes().as_ref());
-    hasher.update(&message_hash);
+    hasher.update(message_hash);
     hasher.update(b"X-WING-SIG");
     let expected = hasher.finalize();
     assert_eq!(result, expected.as_slice());
