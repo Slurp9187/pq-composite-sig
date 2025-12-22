@@ -200,7 +200,7 @@ fn test_verify_tampered_signature_44() {
     let mut sig_bytes = sig.to_bytes();
     let ed_start = 2420; // ML_SIG_SIZE for 44
     sig_bytes[ed_start + 1] ^= 1; // Flip a bit in Ed sig
-    let tampered_sig = Signature::try_from(&sig_bytes[..]).unwrap();
+    let tampered_sig = XwingSig44Signature::try_from(&sig_bytes[..]).unwrap();
     assert!(pk.verify(message, &tampered_sig).is_err());
 }
 
@@ -214,7 +214,7 @@ fn test_verify_binding_tag_mismatch_44() {
     let mut sig_bytes = sig.to_bytes();
     let tag_start = 2420 + 64; // ML_SIG_SIZE + ED_SIG_SIZE for 44
     sig_bytes[tag_start] ^= 1; // Flip a bit in binding tag
-    let tampered_sig = Signature::try_from(&sig_bytes[..]).unwrap();
+    let tampered_sig = XwingSig44Signature::try_from(&sig_bytes[..]).unwrap();
     assert!(pk.verify(message, &tampered_sig).is_err());
 }
 
@@ -229,8 +229,9 @@ fn test_serialization_roundtrip_44() {
     let pk_bytes = pk.to_bytes();
     let sig_bytes = sig.to_bytes();
 
-    let pk_deserialized = VerifyingKey::from(&pk_bytes[..VERIFYING_KEY_SIZE].try_into().unwrap());
-    let sig_deserialized = Signature::try_from(&sig_bytes[..]).unwrap();
+    let pk_deserialized =
+        XwingSig44VerifyingKey::from(&pk_bytes[..VERIFYING_KEY_SIZE].try_into().unwrap());
+    let sig_deserialized = XwingSig44Signature::try_from(&sig_bytes[..]).unwrap();
 
     assert_eq!(pk.to_bytes(), pk_deserialized.to_bytes());
     assert_eq!(sig.to_bytes(), sig_deserialized.to_bytes());
@@ -242,8 +243,8 @@ fn test_deterministic_keys_from_seed_44() {
     use xwing_sig::xwing_sig_44::*;
     let seed1 = [1u8; 32];
     let seed2 = [1u8; 32];
-    let pk1 = SigningKey::new(seed1).verifying_key();
-    let pk2 = SigningKey::new(seed2).verifying_key();
+    let pk1 = XwingSig44SigningKey::new(seed1).verifying_key();
+    let pk2 = XwingSig44SigningKey::new(seed2).verifying_key();
     assert!(pk1 == pk2, "Verifying keys should be equal");
 }
 
@@ -299,7 +300,7 @@ fn test_verify_tampered_signature_87() {
     let mut sig_bytes = sig.to_bytes();
     let ed_start = 4627; // ML_SIG_SIZE for 87
     sig_bytes[ed_start + 1] ^= 1; // Flip a bit in Ed sig
-    let tampered_sig = Signature::try_from(&sig_bytes[..]).unwrap();
+    let tampered_sig = XwingSig87Signature::try_from(&sig_bytes[..]).unwrap();
     assert!(pk.verify(message, &tampered_sig).is_err());
 }
 
@@ -313,7 +314,7 @@ fn test_verify_binding_tag_mismatch_87() {
     let mut sig_bytes = sig.to_bytes();
     let tag_start = 4627 + 64; // ML_SIG_SIZE + ED_SIG_SIZE for 87
     sig_bytes[tag_start] ^= 1; // Flip a bit in binding tag
-    let tampered_sig = Signature::try_from(&sig_bytes[..]).unwrap();
+    let tampered_sig = XwingSig87Signature::try_from(&sig_bytes[..]).unwrap();
     assert!(pk.verify(message, &tampered_sig).is_err());
 }
 
@@ -328,8 +329,9 @@ fn test_serialization_roundtrip_87() {
     let pk_bytes = pk.to_bytes();
     let sig_bytes = sig.to_bytes();
 
-    let pk_deserialized = VerifyingKey::from(&pk_bytes[..VERIFYING_KEY_SIZE].try_into().unwrap());
-    let sig_deserialized = Signature::try_from(&sig_bytes[..]).unwrap();
+    let pk_deserialized =
+        XwingSig87VerifyingKey::from(&pk_bytes[..VERIFYING_KEY_SIZE].try_into().unwrap());
+    let sig_deserialized = XwingSig87Signature::try_from(&sig_bytes[..]).unwrap();
 
     assert_eq!(pk.to_bytes(), pk_deserialized.to_bytes());
     assert_eq!(sig.to_bytes(), sig_deserialized.to_bytes());
@@ -341,8 +343,8 @@ fn test_deterministic_keys_from_seed_87() {
     use xwing_sig::xwing_sig_87::*;
     let seed1 = [1u8; 32];
     let seed2 = [1u8; 32];
-    let pk1 = SigningKey::new(seed1).verifying_key();
-    let pk2 = SigningKey::new(seed2).verifying_key();
+    let pk1 = XwingSig87SigningKey::new(seed1).verifying_key();
+    let pk2 = XwingSig87SigningKey::new(seed2).verifying_key();
     assert!(pk1 == pk2, "Verifying keys should be equal");
 }
 

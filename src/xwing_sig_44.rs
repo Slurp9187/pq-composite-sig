@@ -25,42 +25,42 @@ const ML_SIG_SIZE: usize = 2420; // Approximate size for ML-DSA-44 signature
 pub const VERIFYING_KEY_SIZE: usize = ML_PK_SIZE + ED_PK_SIZE;
 
 #[derive(Clone)]
-pub struct VerifyingKey {
+pub struct XwingSig44VerifyingKey {
     vk_ml: MLDSA44VerificationKey,
     vk_ed: EdVerifyingKey,
 }
 
-impl PartialEq for VerifyingKey {
+impl PartialEq for XwingSig44VerifyingKey {
     fn eq(&self, other: &Self) -> bool {
         self.to_bytes() == other.to_bytes()
     }
 }
 
 #[derive(Clone, ZeroizeOnDrop)]
-pub struct SigningKey {
+pub struct XwingSig44SigningKey {
     seed: [u8; MASTER_SEED_SIZE],
 }
 
-impl SigningKey {
+impl XwingSig44SigningKey {
     pub fn new(seed: [u8; MASTER_SEED_SIZE]) -> Self {
         Self { seed }
     }
 }
 
 #[derive(Clone)]
-pub struct Signature {
+pub struct XwingSig44Signature {
     sig_ml: MLDSA44Signature,
     sig_ed: EdSignature,
     binding_tag: [u8; BINDING_TAG_SIZE],
 }
 
-impl PartialEq for Signature {
+impl PartialEq for XwingSig44Signature {
     fn eq(&self, other: &Self) -> bool {
         self.to_bytes() == other.to_bytes()
     }
 }
 
-impl VerifyingKey {
+impl XwingSig44VerifyingKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::with_capacity(VERIFYING_KEY_SIZE);
         buffer.extend_from_slice(self.vk_ml.as_ref());
@@ -68,7 +68,7 @@ impl VerifyingKey {
         buffer
     }
 
-    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), Error> {
+    pub fn verify(&self, message: &[u8], signature: &XwingSig44Signature) -> Result<(), Error> {
         let message_hash = Sha3_256::digest(message);
         ml_dsa_verify(&self.vk_ml, message, &[], &signature.sig_ml)
             .map_err(|_| Error::InvalidMlDsaSignature)?;
@@ -87,7 +87,7 @@ impl VerifyingKey {
     }
 }
 
-impl From<&[u8; VERIFYING_KEY_SIZE]> for VerifyingKey {
+impl From<&[u8; VERIFYING_KEY_SIZE]> for XwingSig44VerifyingKey {
     fn from(bytes: &[u8; VERIFYING_KEY_SIZE]) -> Self {
         let vk_ml_bytes: [u8; ML_PK_SIZE] = bytes[..ML_PK_SIZE].try_into().unwrap();
         let vk_ml = MLDSA44VerificationKey::new(vk_ml_bytes);
@@ -97,12 +97,12 @@ impl From<&[u8; VERIFYING_KEY_SIZE]> for VerifyingKey {
     }
 }
 
-impl SigningKey {
+impl XwingSig44SigningKey {
     pub fn sign(
         &self,
         message: &[u8],
         rng: &mut (impl CryptoRng + RngCore),
-    ) -> Result<Signature, Error> {
+    ) -> Result<XwingSig44Signature, Error> {
         let (kp_ml, sk_ed) = expand_seed(&self.seed);
         let sk_ml = kp_ml.signing_key;
         let mut rand = [0u8; 32];
@@ -111,22 +111,22 @@ impl SigningKey {
         let sig_ed = sk_ed.sign(message);
         let message_hash = Sha3_256::digest(message);
         let binding_tag = combiner(sig_ml.as_ref(), sig_ed.to_bytes().as_ref(), &message_hash);
-        Ok(Signature {
+        Ok(XwingSig44Signature {
             sig_ml,
             sig_ed,
             binding_tag,
         })
     }
 
-    pub fn verifying_key(&self) -> VerifyingKey {
+    pub fn verifying_key(&self) -> XwingSig44VerifyingKey {
         let (kp_ml, sk_ed) = expand_seed(&self.seed);
         let vk_ml = kp_ml.verification_key;
         let vk_ed = sk_ed.verifying_key();
-        VerifyingKey { vk_ml, vk_ed }
+        XwingSig44VerifyingKey { vk_ml, vk_ed }
     }
 }
 
-impl Signature {
+impl XwingSig44Signature {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
         buffer.extend_from_slice(self.sig_ml.as_ref());
@@ -136,7 +136,7 @@ impl Signature {
     }
 }
 
-impl TryFrom<&[u8]> for Signature {
+impl TryFrom<&[u8]> for XwingSig44Signature {
     type Error = Error;
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         const TAG_SIZE: usize = 32;
@@ -148,7 +148,7 @@ impl TryFrom<&[u8]> for Signature {
         let sig_ed_bytes: [u8; 64] = bytes[ML_SIG_SIZE..ML_SIG_SIZE + 64].try_into().unwrap();
         let sig_ed = EdSignature::from_bytes(&sig_ed_bytes);
         let binding_tag: [u8; TAG_SIZE] = bytes[ML_SIG_SIZE + 64..].try_into().unwrap();
-        Ok(Signature {
+        Ok(XwingSig44Signature {
             sig_ml,
             sig_ed,
             binding_tag,
@@ -156,13 +156,18 @@ impl TryFrom<&[u8]> for Signature {
     }
 }
 
-pub fn generate_keypair<R: CryptoRng + RngCore>(rng: &mut R) -> (SigningKey, VerifyingKey) {
+pub fn generate_keypair<R: CryptoRng + RngCore>(
+    rng: &mut R,
+) -> (XwingSig44SigningKey, XwingSig44VerifyingKey) {
     let mut seed = [0u8; MASTER_SEED_SIZE];
     rng.fill_bytes(&mut seed);
     let (kp_ml, sk_ed) = expand_seed(&seed);
     let vk_ml = kp_ml.verification_key;
     let vk_ed = sk_ed.verifying_key();
-    (SigningKey::new(seed), VerifyingKey { vk_ml, vk_ed })
+    (
+        XwingSig44SigningKey::new(seed),
+        XwingSig44VerifyingKey { vk_ml, vk_ed },
+    )
 }
 
 fn expand_seed(seed: &[u8; MASTER_SEED_SIZE]) -> (MLDSA44KeyPair, EdSigningKey) {

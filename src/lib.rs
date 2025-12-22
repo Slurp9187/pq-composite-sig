@@ -26,7 +26,9 @@ pub mod xwing_sig_65;
 pub mod xwing_sig_87;
 
 pub use combiner::combiner;
-pub use xwing_sig_65::*;
+pub use xwing_sig_44::{XwingSig44Signature, XwingSig44SigningKey, XwingSig44VerifyingKey};
+pub use xwing_sig_65::{XwingSig65Signature, XwingSig65SigningKey, XwingSig65VerifyingKey};
+pub use xwing_sig_87::{XwingSig87Signature, XwingSig87SigningKey, XwingSig87VerifyingKey};
 
 pub const XWING_SIG_VERSION: &str = "01";
 
