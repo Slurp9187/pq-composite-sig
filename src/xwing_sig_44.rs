@@ -2,15 +2,15 @@
 
 extern crate alloc;
 
-use super::{combiner, consts::MASTER_SEED_SIZE};
+use super::{combiner, consts::MASTER_SEED_SIZE, Error};
 use alloc::vec::Vec;
 use ed25519_dalek::{
     Signature as EdSignature, Signer, SigningKey as EdSigningKey, Verifier,
     VerifyingKey as EdVerifyingKey,
 };
 use libcrux_ml_dsa::ml_dsa_44::{
-    MLDSA44KeyPair, MLDSA44Signature, MLDSA44VerificationKey, generate_key_pair,
-    sign as ml_dsa_sign, verify as ml_dsa_verify,
+    generate_key_pair, sign as ml_dsa_sign, verify as ml_dsa_verify, MLDSA44KeyPair,
+    MLDSA44Signature, MLDSA44VerificationKey,
 };
 use rand_core::{CryptoRng, RngCore};
 use sha3::digest::{Digest, ExtendableOutput, Update, XofReader};
@@ -68,21 +68,21 @@ impl VerifyingKey {
         buffer
     }
 
-    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), &'static str> {
+    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), Error> {
         let message_hash = Sha3_256::digest(message);
         ml_dsa_verify(&self.vk_ml, message, &[], &signature.sig_ml)
-            .map_err(|_| "Invalid ML-DSA signature")?;
+            .map_err(|_| Error::InvalidMlDsaSignature)?;
         let expected_tag = combiner(
             signature.sig_ml.as_ref(),
             signature.sig_ed.to_bytes().as_ref(),
             &message_hash,
         );
         if expected_tag != signature.binding_tag {
-            return Err("Binding tag mismatch");
+            return Err(Error::BindingTagMismatch);
         }
         self.vk_ed
             .verify(message, &signature.sig_ed)
-            .map_err(|_| "Invalid Ed25519 signature")?;
+            .map_err(|_| Error::InvalidEd25519Signature)?;
         Ok(())
     }
 }
@@ -98,20 +98,24 @@ impl From<&[u8; VERIFYING_KEY_SIZE]> for VerifyingKey {
 }
 
 impl SigningKey {
-    pub fn sign(&self, message: &[u8], rng: &mut (impl CryptoRng + RngCore)) -> Signature {
+    pub fn sign(
+        &self,
+        message: &[u8],
+        rng: &mut (impl CryptoRng + RngCore),
+    ) -> Result<Signature, Error> {
         let (kp_ml, sk_ed) = expand_seed(&self.seed);
         let sk_ml = kp_ml.signing_key;
         let mut rand = [0u8; 32];
         rng.fill_bytes(&mut rand);
-        let sig_ml = ml_dsa_sign(&sk_ml, message, &[], rand).unwrap();
+        let sig_ml = ml_dsa_sign(&sk_ml, message, &[], rand).map_err(|_| Error::MlDsaSignError)?;
         let sig_ed = sk_ed.sign(message);
         let message_hash = Sha3_256::digest(message);
         let binding_tag = combiner(sig_ml.as_ref(), sig_ed.to_bytes().as_ref(), &message_hash);
-        Signature {
+        Ok(Signature {
             sig_ml,
             sig_ed,
             binding_tag,
-        }
+        })
     }
 
     pub fn verifying_key(&self) -> VerifyingKey {
@@ -133,11 +137,11 @@ impl Signature {
 }
 
 impl TryFrom<&[u8]> for Signature {
-    type Error = &'static str;
+    type Error = Error;
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         const TAG_SIZE: usize = 32;
         if bytes.len() != ML_SIG_SIZE + 64 + TAG_SIZE {
-            return Err("Invalid length");
+            return Err(Error::InvalidSignatureLength);
         }
         let sig_ml_bytes: [u8; ML_SIG_SIZE] = bytes[..ML_SIG_SIZE].try_into().unwrap();
         let sig_ml = MLDSA44Signature::new(sig_ml_bytes);

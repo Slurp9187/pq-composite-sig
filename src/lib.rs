@@ -18,7 +18,6 @@
 
 extern crate alloc;
 
-pub mod aliases;
 pub mod combiner;
 pub mod consts;
 pub mod error;
@@ -32,3 +31,5 @@ pub use xwing_sig_65::*;
 pub const XWING_SIG_VERSION: &str = "01";
 
 pub use consts::{MASTER_SEED_SIZE, SHARED_LABEL};
+
+pub use error::{Error, Result};

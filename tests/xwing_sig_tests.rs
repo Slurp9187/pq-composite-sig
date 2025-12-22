@@ -82,7 +82,7 @@ fn test_sign_verify_roundtrip_65() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
 }
 
@@ -92,7 +92,7 @@ fn test_verify_invalid_message_65() {
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
     let wrong_message = b"Goodbye, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(wrong_message, &sig).is_err());
 }
 
@@ -101,7 +101,7 @@ fn test_verify_tampered_signature_65() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
     let ed_start = 3309; // ML_SIG_SIZE for 65
     sig_bytes[ed_start + 1] ^= 1; // Flip a bit in Ed sig
@@ -114,7 +114,7 @@ fn test_verify_binding_tag_mismatch_65() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
     let tag_start = 3309 + 64; // ML_SIG_SIZE + ED_SIG_SIZE for 65
     sig_bytes[tag_start] ^= 1; // Flip a bit in binding tag
@@ -127,7 +127,7 @@ fn test_serialization_roundtrip_65() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
 
     let pk_bytes = pk.to_bytes();
     let sig_bytes = sig.to_bytes();
@@ -155,7 +155,7 @@ fn test_verify_wrong_key_65() {
     let (sk, pk) = generate_keypair(&mut rng);
     let (_wrong_sk, wrong_pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
     assert!(wrong_pk.verify(message, &sig).is_err());
 }
@@ -175,7 +175,7 @@ fn test_sign_verify_roundtrip_44() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
 }
 
@@ -186,7 +186,7 @@ fn test_verify_invalid_message_44() {
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
     let wrong_message = b"Goodbye, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(wrong_message, &sig).is_err());
 }
 
@@ -196,7 +196,7 @@ fn test_verify_tampered_signature_44() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
     let ed_start = 2420; // ML_SIG_SIZE for 44
     sig_bytes[ed_start + 1] ^= 1; // Flip a bit in Ed sig
@@ -210,7 +210,7 @@ fn test_verify_binding_tag_mismatch_44() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
     let tag_start = 2420 + 64; // ML_SIG_SIZE + ED_SIG_SIZE for 44
     sig_bytes[tag_start] ^= 1; // Flip a bit in binding tag
@@ -224,7 +224,7 @@ fn test_serialization_roundtrip_44() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
 
     let pk_bytes = pk.to_bytes();
     let sig_bytes = sig.to_bytes();
@@ -254,7 +254,7 @@ fn test_verify_wrong_key_44() {
     let (sk, pk) = generate_keypair(&mut rng);
     let (_wrong_sk, wrong_pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
     assert!(wrong_pk.verify(message, &sig).is_err());
 }
@@ -274,7 +274,7 @@ fn test_sign_verify_roundtrip_87() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
 }
 
@@ -285,7 +285,7 @@ fn test_verify_invalid_message_87() {
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
     let wrong_message = b"Goodbye, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(wrong_message, &sig).is_err());
 }
 
@@ -295,7 +295,7 @@ fn test_verify_tampered_signature_87() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
     let ed_start = 4627; // ML_SIG_SIZE for 87
     sig_bytes[ed_start + 1] ^= 1; // Flip a bit in Ed sig
@@ -309,7 +309,7 @@ fn test_verify_binding_tag_mismatch_87() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     let mut sig_bytes = sig.to_bytes();
     let tag_start = 4627 + 64; // ML_SIG_SIZE + ED_SIG_SIZE for 87
     sig_bytes[tag_start] ^= 1; // Flip a bit in binding tag
@@ -323,7 +323,7 @@ fn test_serialization_roundtrip_87() {
     let mut rng = rng();
     let (sk, pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
 
     let pk_bytes = pk.to_bytes();
     let sig_bytes = sig.to_bytes();
@@ -353,7 +353,7 @@ fn test_verify_wrong_key_87() {
     let (sk, pk) = generate_keypair(&mut rng);
     let (_wrong_sk, wrong_pk) = generate_keypair(&mut rng);
     let message = b"Hello, world!";
-    let sig = sk.sign(message, &mut rng);
+    let sig = sk.sign(message, &mut rng).unwrap();
     assert!(pk.verify(message, &sig).is_ok());
     assert!(wrong_pk.verify(message, &sig).is_err());
 }
