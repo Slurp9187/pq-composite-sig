@@ -7,6 +7,68 @@ fn rng() -> ChaCha12Rng {
     ChaCha12Rng::from_seed([0u8; 32])
 }
 
+#[cfg(test)]
+mod combiner_tests {
+    use super::*;
+    use sha3::{Digest, Sha3_256};
+
+    #[test]
+    fn test_combiner_consistency() {
+        let sig_ml = b"mock_ml_sig";
+        let sig_ed = ed25519_dalek::Signature::from_bytes(&[1u8; 64]);
+        let message_hash = Sha3_256::digest(b"message");
+
+        let result1 = combiner::combiner(sig_ml, sig_ed.to_bytes().as_ref(), &message_hash);
+        let result2 = combiner::combiner(sig_ml, sig_ed.to_bytes().as_ref(), &message_hash);
+
+        assert_eq!(result1, result2);
+        assert_eq!(result1.len(), 32);
+    }
+
+    #[test]
+    fn test_combiner_different_inputs() {
+        let sig_ml1 = b"mock_ml_sig1";
+        let sig_ml2 = b"mock_ml_sig2";
+        let sig_ed = ed25519_dalek::Signature::from_bytes(&[1u8; 64]);
+        let message_hash = Sha3_256::digest(b"message");
+
+        let result1 = combiner::combiner(sig_ml1, sig_ed.to_bytes().as_ref(), &message_hash);
+        let result2 = combiner::combiner(sig_ml2, sig_ed.to_bytes().as_ref(), &message_hash);
+
+        assert_ne!(result1, result2);
+    }
+
+    #[test]
+    fn test_combiner_includes_label() {
+        let sig_ml = b"mock_ml_sig";
+        let sig_ed = ed25519_dalek::Signature::from_bytes(&[1u8; 64]);
+        let message_hash = Sha3_256::digest(b"message");
+
+        let combined = combiner::combiner(sig_ml, sig_ed.to_bytes().as_ref(), &message_hash);
+
+        // Plain hash without label
+        let plain_hash = Sha3_256::new()
+            .chain_update(sig_ml)
+            .chain_update(sig_ed.to_bytes().as_ref())
+            .chain_update(&message_hash)
+            .finalize();
+
+        assert_ne!(combined, plain_hash.as_slice());
+    }
+
+    #[test]
+    fn test_combiner_all_zero_inputs() {
+        let sig_ml = [0u8; 10];
+        let sig_ed = [0u8; 64];
+        let message_hash = [0u8; 32];
+
+        let result = combiner::combiner(&sig_ml, &sig_ed, &message_hash);
+        // Should still produce a non-zero hash due to the label
+        assert!(!result.iter().all(|&b| b == 0));
+        assert_eq!(result.len(), 32);
+    }
+}
+
 // Tests for xwing_sig_65 (default)
 #[test]
 fn test_generate_keypair_65() {
@@ -85,6 +147,17 @@ fn test_deterministic_keys_from_seed_65() {
     let pk1 = SigningKey::new(seed1).verifying_key();
     let pk2 = SigningKey::new(seed2).verifying_key();
     assert!(pk1 == pk2, "Verifying keys should be equal");
+}
+
+#[test]
+fn test_verify_wrong_key_65() {
+    let mut rng = rng();
+    let (sk, pk) = generate_keypair(&mut rng);
+    let (_wrong_sk, wrong_pk) = generate_keypair(&mut rng);
+    let message = b"Hello, world!";
+    let sig = sk.sign(message, &mut rng);
+    assert!(pk.verify(message, &sig).is_ok());
+    assert!(wrong_pk.verify(message, &sig).is_err());
 }
 
 // Tests for xwing_sig_44
@@ -172,6 +245,18 @@ fn test_deterministic_keys_from_seed_44() {
     let pk1 = SigningKey::new(seed1).verifying_key();
     let pk2 = SigningKey::new(seed2).verifying_key();
     assert!(pk1 == pk2, "Verifying keys should be equal");
+}
+
+#[test]
+fn test_verify_wrong_key_44() {
+    use xwing_sig::xwing_sig_44::*;
+    let mut rng = rng();
+    let (sk, pk) = generate_keypair(&mut rng);
+    let (_wrong_sk, wrong_pk) = generate_keypair(&mut rng);
+    let message = b"Hello, world!";
+    let sig = sk.sign(message, &mut rng);
+    assert!(pk.verify(message, &sig).is_ok());
+    assert!(wrong_pk.verify(message, &sig).is_err());
 }
 
 // Tests for xwing_sig_87
@@ -262,10 +347,23 @@ fn test_deterministic_keys_from_seed_87() {
 }
 
 #[test]
+fn test_verify_wrong_key_87() {
+    use xwing_sig::xwing_sig_87::*;
+    let mut rng = rng();
+    let (sk, pk) = generate_keypair(&mut rng);
+    let (_wrong_sk, wrong_pk) = generate_keypair(&mut rng);
+    let message = b"Hello, world!";
+    let sig = sk.sign(message, &mut rng);
+    assert!(pk.verify(message, &sig).is_ok());
+    assert!(wrong_pk.verify(message, &sig).is_err());
+}
+
+#[test]
 fn test_combiner_function() {
     let sig_ml = b"mock_ml_sig";
     let sig_ed = ed25519_dalek::Signature::from_bytes(&[0u8; 64]);
     let message_hash = Sha3_256::digest(b"message");
+    let result = combiner::combiner(sig_ml, sig_ed.to_bytes().as_ref(), &message_hash);
     // Compute expected tag manually
     let mut hasher = Sha3_256::new();
     hasher.update(sig_ml);
@@ -273,5 +371,5 @@ fn test_combiner_function() {
     hasher.update(&message_hash);
     hasher.update(b"X-WING-SIG");
     let expected = hasher.finalize();
-    assert_eq!(expected.len(), 32);
+    assert_eq!(result, expected.as_slice());
 }

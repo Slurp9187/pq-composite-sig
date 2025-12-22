@@ -26,7 +26,7 @@ pub mod xwing_sig_44;
 pub mod xwing_sig_65;
 pub mod xwing_sig_87;
 
-pub(crate) use combiner::combiner;
+pub use combiner::combiner;
 pub use xwing_sig_65::*;
 
 pub const XWING_SIG_VERSION: &str = "01";
