@@ -13,6 +13,7 @@ use libcrux_ml_dsa::ml_dsa_65::{
 };
 
 use rand_core::{CryptoRng, RngCore};
+use sha2::{Digest, Sha512};
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Shake256,
@@ -33,8 +34,9 @@ const ML_SIG_SIZE: usize = 3309;
 const ED_SIG_SIZE: usize = 64;
 pub const SIGNATURE_SIZE: usize = ML_SIG_SIZE + ED_SIG_SIZE;
 
-const DOM_SEP: &[u8] = b"CompositeAlgorithmSignatures2025";
-const LABEL: &[u8] = b"MLDSA65-Ed25519-SHAKE256";
+const DOM_SEP: &[u8] = b"CompSigX962-2023";
+const ALG_ID: &[u8] = b"\x06\x0d\x2b\x06\x01\x04\x01\x02\x82\x0b\x0c\x06\x05"; // DER encoding of OID 1.3.6.1.4.1.2.267.12.6.5 for MLDSA65-Ed25519
+const LABEL: &[u8] = b"SigMLDSA65";
 const PH_OUTPUT_LEN: usize = 64; // 512 bits
 
 #[derive(Error, Debug)]
@@ -153,8 +155,9 @@ impl VerifyingKey {
         ml_dsa_verify(&self.vk_ml, &m_prime, LABEL, &signature.sig_ml)
             .map_err(|_| CompositeError::InvalidMlDsaSignature)?;
 
+        let m_prime_hash = Sha512::digest(&m_prime);
         self.vk_ed
-            .verify(&m_prime, &signature.sig_ed)
+            .verify(&m_prime_hash, &signature.sig_ed)
             .map_err(|_| CompositeError::InvalidEdSignature)?;
 
         Ok(())
@@ -212,7 +215,8 @@ impl SigningKey {
         let sig_ml = ml_dsa_sign(&self.sk_ml.signing_key, &m_prime, LABEL, *rand)
             .map_err(|_| CompositeError::MlDsaSignError)?;
 
-        let sig_ed = self.sk_ed.sign(&m_prime);
+        let m_prime_hash = Sha512::digest(&m_prime);
+        let sig_ed = self.sk_ed.sign(&m_prime_hash);
 
         Ok(Signature { sig_ml, sig_ed })
     }
@@ -285,9 +289,9 @@ fn compute_ph(message: &[u8]) -> [u8; PH_OUTPUT_LEN] {
 
 fn compute_m_prime(ph_m: &[u8; PH_OUTPUT_LEN], context: &[u8]) -> Vec<u8> {
     let mut m_prime =
-        Vec::with_capacity(DOM_SEP.len() + LABEL.len() + 1 + context.len() + PH_OUTPUT_LEN);
+        Vec::with_capacity(DOM_SEP.len() + ALG_ID.len() + 1 + context.len() + PH_OUTPUT_LEN);
     m_prime.extend_from_slice(DOM_SEP);
-    m_prime.extend_from_slice(LABEL);
+    m_prime.extend_from_slice(ALG_ID);
     m_prime.push(context.len() as u8);
     m_prime.extend_from_slice(context);
     m_prime.extend_from_slice(ph_m);
