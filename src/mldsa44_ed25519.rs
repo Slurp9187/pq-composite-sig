@@ -37,6 +37,7 @@ pub const ED_SIG_SIZE: usize = 64;
 pub const SIGNATURE_SIZE: usize = ML_SIG_SIZE + ED_SIG_SIZE;
 
 const DOM_SEP: &[u8] = b"CompSigX962-2023";
+const ALG_ID: &[u8] = b"\x06\x0d\x2b\x06\x01\x04\x01\x02\x82\x0b\x0c\x04\x04"; // DER encoding of OID 1.3.6.1.4.1.2.267.12.4.4 for MLDSA44-Ed25519
 const LABEL: &[u8] = b"SigMLDSA44";
 const PH_OUTPUT_LEN: usize = 64; // 512 bits
 
@@ -311,9 +312,9 @@ fn compute_ph(message: &[u8]) -> [u8; PH_OUTPUT_LEN] {
 
 fn compute_m_prime(ph_m: &[u8; PH_OUTPUT_LEN], context: &[u8]) -> Vec<u8> {
     let mut m_prime =
-        Vec::with_capacity(DOM_SEP.len() + LABEL.len() + 1 + context.len() + PH_OUTPUT_LEN);
+        Vec::with_capacity(DOM_SEP.len() + ALG_ID.len() + 1 + context.len() + PH_OUTPUT_LEN);
     m_prime.extend_from_slice(DOM_SEP);
-    m_prime.extend_from_slice(LABEL);
+    m_prime.extend_from_slice(ALG_ID);
     m_prime.push(context.len() as u8);
     m_prime.extend_from_slice(context);
     m_prime.extend_from_slice(ph_m);
