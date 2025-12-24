@@ -6,23 +6,21 @@
 use core::ops::Deref;
 
 use ed448_goldilocks_plus::{
-    SigningKey as EdSigningKey,
-    VerifyingKey as EdVerifyingKey,
-    Signature as EdSignature,
+    Signature as EdSignature, SigningKey as EdSigningKey, VerifyingKey as EdVerifyingKey,
 };
 
 use libcrux_ml_dsa::ml_dsa_87::{
-    generate_key_pair,
-    sign as ml_dsa_sign,
-    verify as ml_dsa_verify,
-    MLDSA87KeyPair,
-    MLDSA87Signature,
-    MLDSA87VerificationKey,
+    generate_key_pair, sign as ml_dsa_sign, verify as ml_dsa_verify, MLDSA87KeyPair,
+    MLDSA87Signature, MLDSA87VerificationKey,
 };
 
 use rand_core::{CryptoRng, RngCore};
-use sha3::{Shake256, digest::{Update, ExtendableOutput, XofReader}};
+use sha3::{
+    digest::{ExtendableOutput, Update, XofReader},
+    Shake256,
+};
 use signature::Verifier;
+use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -60,15 +58,39 @@ pub struct VerifyingKey {
     vk_ed: EdVerifyingKey,
 }
 
+impl Debug for VerifyingKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VerifyingKey")
+            .field("vk_ml", &"..")
+            .field("vk_ed", &"..")
+            .finish()
+    }
+}
+
 #[derive(ZeroizeOnDrop)]
 pub struct SigningKey {
     sk_ed: EdSigningKey,
+}
+
+impl Debug for SigningKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SigningKey").field("sk_ed", &"..").finish()
+    }
 }
 
 #[derive(Clone)]
 pub struct Signature {
     sig_ml: MLDSA87Signature,
     sig_ed: EdSignature,
+}
+
+impl Debug for Signature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Signature")
+            .field("sig_ml", &"..")
+            .field("sig_ed", &"..")
+            .finish()
+    }
 }
 
 impl VerifyingKey {
@@ -130,7 +152,7 @@ impl SigningKey {
         }
 
         let ed_seed_bytes = self.sk_ed.to_bytes();
-        let ed_seed_array: [u8; MASTER_SEED_SIZE] = ed_seed_bytes.as_slice().try_into().unwrap();
+        let ed_seed_array: [u8; MASTER_SEED_SIZE] = (&*ed_seed_bytes).try_into().unwrap();
         let kp_ml = expand_seed(&ed_seed_array);
         let sk_ml = kp_ml.signing_key;
 
@@ -150,7 +172,7 @@ impl SigningKey {
 
     pub fn verifying_key(&self) -> VerifyingKey {
         let ed_seed_bytes = self.sk_ed.to_bytes();
-        let ed_seed_array: [u8; MASTER_SEED_SIZE] = ed_seed_bytes.as_slice().try_into().unwrap();
+        let ed_seed_array: [u8; MASTER_SEED_SIZE] = (&*ed_seed_bytes).try_into().unwrap();
         let kp_ml = expand_seed(&ed_seed_array);
         let vk_ed = self.sk_ed.verifying_key();
         VerifyingKey {
@@ -189,9 +211,7 @@ impl TryFrom<&[u8]> for Signature {
     }
 }
 
-pub fn generate_keypair<R: CryptoRng + RngCore>(
-    rng: &mut R,
-) -> (SigningKey, VerifyingKey) {
+pub fn generate_keypair<R: CryptoRng + RngCore>(rng: &mut R) -> (SigningKey, VerifyingKey) {
     let sk_ed = EdSigningKey::generate(rng);
     let sk = SigningKey { sk_ed };
     let vk = sk.verifying_key();
@@ -217,7 +237,8 @@ fn compute_ph(message: &[u8]) -> [u8; PH_OUTPUT_LEN] {
 }
 
 fn compute_m_prime(ph_m: &[u8; PH_OUTPUT_LEN], context: &[u8]) -> Vec<u8> {
-    let mut m_prime = Vec::with_capacity(DOM_SEP.len() + LABEL.len() + 1 + context.len() + PH_OUTPUT_LEN);
+    let mut m_prime =
+        Vec::with_capacity(DOM_SEP.len() + LABEL.len() + 1 + context.len() + PH_OUTPUT_LEN);
     m_prime.extend_from_slice(DOM_SEP);
     m_prime.extend_from_slice(LABEL);
     m_prime.push(context.len() as u8);
