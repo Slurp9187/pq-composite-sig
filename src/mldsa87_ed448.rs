@@ -45,6 +45,10 @@ pub enum CompositeError {
     InvalidContextLength,
     #[error("invalid signature length")]
     InvalidSignatureLength,
+    #[error("invalid signature bytes")]
+    InvalidSignatureBytes,
+    #[error("invalid verifying key bytes")]
+    InvalidVerifyingKeyBytes,
     #[error("invalid ML-DSA signature")]
     InvalidMlDsaSignature,
     #[error("invalid Ed448 signature")]
@@ -150,13 +154,16 @@ impl VerifyingKey {
     }
 }
 
-impl From<&[u8; VERIFYING_KEY_SIZE]> for VerifyingKey {
-    fn from(bytes: &[u8; VERIFYING_KEY_SIZE]) -> Self {
+impl TryFrom<&[u8; VERIFYING_KEY_SIZE]> for VerifyingKey {
+    type Error = CompositeError;
+
+    fn try_from(bytes: &[u8; VERIFYING_KEY_SIZE]) -> Result<Self, Self::Error> {
         let vk_ml_bytes: [u8; ML_PK_SIZE] = bytes[..ML_PK_SIZE].try_into().unwrap();
         let vk_ml = MLDSA87VerificationKey::new(vk_ml_bytes);
         let vk_ed_bytes: [u8; ED_PK_SIZE] = bytes[ML_PK_SIZE..].try_into().unwrap();
-        let vk_ed = EdVerifyingKey::from_bytes(&vk_ed_bytes).unwrap();
-        Self { vk_ml, vk_ed }
+        let vk_ed = EdVerifyingKey::from_bytes(&vk_ed_bytes)
+            .map_err(|_| CompositeError::InvalidVerifyingKeyBytes)?;
+        Ok(Self { vk_ml, vk_ed })
     }
 }
 
@@ -230,7 +237,8 @@ impl TryFrom<&[u8]> for Signature {
 
         let mut sig_ed_bytes = [0u8; ED_SIG_SIZE];
         sig_ed_bytes.copy_from_slice(&bytes[ML_SIG_SIZE..]);
-        let sig_ed = EdSignature::from_bytes(&sig_ed_bytes).unwrap();
+        let sig_ed = EdSignature::from_bytes(&sig_ed_bytes)
+            .map_err(|_| CompositeError::InvalidSignatureBytes)?;
 
         Ok(Signature { sig_ml, sig_ed })
     }

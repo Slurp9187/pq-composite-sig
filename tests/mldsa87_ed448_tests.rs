@@ -69,7 +69,7 @@ fn test_serialization_roundtrip() {
     let sig = sk.sign(message, context, &mut rng).unwrap();
     let vk_bytes = vk.to_bytes();
     let sig_bytes = sig.to_bytes();
-    let vk_deserialized = VerifyingKey::from(&vk_bytes);
+    let vk_deserialized = VerifyingKey::try_from(&vk_bytes).unwrap();
     let sig_deserialized = Signature::try_from(&sig_bytes[..]).unwrap();
     assert_eq!(vk, vk_deserialized);
     assert_eq!(sig, sig_deserialized);
