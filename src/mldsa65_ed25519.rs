@@ -26,13 +26,13 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 const MASTER_SEED_SIZE: usize = 32; // Ed25519 private key seed size
 
-const ML_PK_SIZE: usize = 1952;
-const ED_PK_SIZE: usize = 32;
-pub const VERIFYING_KEY_SIZE: usize = ML_PK_SIZE + ED_PK_SIZE;
+const MLDSA65_PK_SIZE: usize = 1952;
+const ED25519_PK_SIZE: usize = 32;
+pub const COMPSIG65_VERIFYING_KEY_SIZE: usize = MLDSA65_PK_SIZE + ED25519_PK_SIZE;
 
-const ML_SIG_SIZE: usize = 3309;
-const ED_SIG_SIZE: usize = 64;
-pub const SIGNATURE_SIZE: usize = ML_SIG_SIZE + ED_SIG_SIZE;
+const MLDSA65_SIG_SIZE: usize = 3309;
+const ED25519_SIG_SIZE: usize = 64;
+pub const COMPSIG65_SIGNATURE_SIZE: usize = MLDSA65_SIG_SIZE + ED25519_SIG_SIZE;
 
 const DOM_SEP: &[u8] = b"CompSigX962-2023";
 const ALG_ID: &[u8] = b"\x06\x0d\x2b\x06\x01\x04\x01\x02\x82\x0b\x0c\x06\x05"; // DER encoding of OID 1.3.6.1.4.1.2.267.12.6.5 for MLDSA65-Ed25519
@@ -132,10 +132,10 @@ impl PartialEq for Signature {
 impl Eq for Signature {}
 
 impl VerifyingKey {
-    pub fn to_bytes(&self) -> [u8; VERIFYING_KEY_SIZE] {
-        let mut buf = [0u8; VERIFYING_KEY_SIZE];
-        buf[..ML_PK_SIZE].copy_from_slice(self.vk_ml.as_ref());
-        buf[ML_PK_SIZE..].copy_from_slice(&self.vk_ed.to_bytes());
+    pub fn to_bytes(&self) -> [u8; COMPSIG65_VERIFYING_KEY_SIZE] {
+        let mut buf = [0u8; COMPSIG65_VERIFYING_KEY_SIZE];
+        buf[..MLDSA65_PK_SIZE].copy_from_slice(self.vk_ml.as_ref());
+        buf[MLDSA65_PK_SIZE..].copy_from_slice(&self.vk_ed.to_bytes());
         buf
     }
 
@@ -164,15 +164,15 @@ impl VerifyingKey {
     }
 }
 
-impl TryFrom<&[u8; VERIFYING_KEY_SIZE]> for VerifyingKey {
+impl TryFrom<&[u8; COMPSIG65_VERIFYING_KEY_SIZE]> for VerifyingKey {
     type Error = CompositeError;
 
-    fn try_from(bytes: &[u8; VERIFYING_KEY_SIZE]) -> Result<Self, Self::Error> {
-        let vk_ml_bytes: [u8; ML_PK_SIZE] = bytes[..ML_PK_SIZE]
+    fn try_from(bytes: &[u8; COMPSIG65_VERIFYING_KEY_SIZE]) -> Result<Self, Self::Error> {
+        let vk_ml_bytes: [u8; MLDSA65_PK_SIZE] = bytes[..MLDSA65_PK_SIZE]
             .try_into()
             .map_err(|_| CompositeError::InvalidVerifyingKeyBytes)?;
         let vk_ml = MLDSA65VerificationKey::new(vk_ml_bytes);
-        let vk_ed_bytes: [u8; ED_PK_SIZE] = bytes[ML_PK_SIZE..].try_into().unwrap();
+        let vk_ed_bytes: [u8; ED25519_PK_SIZE] = bytes[MLDSA65_PK_SIZE..].try_into().unwrap();
         let vk_ed = ed25519_dalek::VerifyingKey::try_from(&vk_ed_bytes[..])
             .map_err(|_| CompositeError::InvalidVerifyingKeyBytes)?;
         Ok(Self { vk_ml, vk_ed })
@@ -231,10 +231,10 @@ impl SigningKey {
 }
 
 impl Signature {
-    pub fn to_bytes(&self) -> [u8; SIGNATURE_SIZE] {
-        let mut buf = [0u8; SIGNATURE_SIZE];
-        buf[..ML_SIG_SIZE].copy_from_slice(self.sig_ml.as_ref());
-        buf[ML_SIG_SIZE..].copy_from_slice(&self.sig_ed.to_bytes());
+    pub fn to_bytes(&self) -> [u8; COMPSIG65_SIGNATURE_SIZE] {
+        let mut buf = [0u8; COMPSIG65_SIGNATURE_SIZE];
+        buf[..MLDSA65_SIG_SIZE].copy_from_slice(self.sig_ml.as_ref());
+        buf[MLDSA65_SIG_SIZE..].copy_from_slice(&self.sig_ed.to_bytes());
         buf
     }
 }
@@ -243,16 +243,16 @@ impl TryFrom<&[u8]> for Signature {
     type Error = CompositeError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != SIGNATURE_SIZE {
+        if bytes.len() != COMPSIG65_SIGNATURE_SIZE {
             return Err(CompositeError::InvalidSignatureLength);
         }
 
-        let mut sig_ml_bytes = [0u8; ML_SIG_SIZE];
-        sig_ml_bytes.copy_from_slice(&bytes[..ML_SIG_SIZE]);
+        let mut sig_ml_bytes = [0u8; MLDSA65_SIG_SIZE];
+        sig_ml_bytes.copy_from_slice(&bytes[..MLDSA65_SIG_SIZE]);
         let sig_ml = MLDSA65Signature::new(sig_ml_bytes);
 
-        let mut sig_ed_bytes = [0u8; ED_SIG_SIZE];
-        sig_ed_bytes.copy_from_slice(&bytes[ML_SIG_SIZE..]);
+        let mut sig_ed_bytes = [0u8; ED25519_SIG_SIZE];
+        sig_ed_bytes.copy_from_slice(&bytes[MLDSA65_SIG_SIZE..]);
         let sig_ed = ed25519_dalek::Signature::try_from(sig_ed_bytes.as_ref())?;
 
         Ok(Signature { sig_ml, sig_ed })

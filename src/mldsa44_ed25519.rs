@@ -28,13 +28,13 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 const MASTER_SEED_SIZE: usize = 32; // Ed25519 private key seed size
 
-pub const ML_PK_SIZE: usize = 1312;
-pub const ED_PK_SIZE: usize = 32;
-pub const VERIFYING_KEY_SIZE: usize = ML_PK_SIZE + ED_PK_SIZE;
+pub const MLDSA44_PK_SIZE: usize = 1312;
+pub const ED25519_PK_SIZE: usize = 32;
+pub const COMPSIG44_VERIFYING_KEY_SIZE: usize = MLDSA44_PK_SIZE + ED25519_PK_SIZE;
 
-pub const ML_SIG_SIZE: usize = 2420;
-pub const ED_SIG_SIZE: usize = 64;
-pub const SIGNATURE_SIZE: usize = ML_SIG_SIZE + ED_SIG_SIZE;
+pub const MLDSA44_SIG_SIZE: usize = 2420;
+pub const ED25519_SIG_SIZE: usize = 64;
+pub const COMPSIG44_SIGNATURE_SIZE: usize = MLDSA44_SIG_SIZE + ED25519_SIG_SIZE;
 
 const DOM_SEP: &[u8] = b"CompSigX962-2023";
 const ALG_ID: &[u8] = b"\x06\x0d\x2b\x06\x01\x04\x01\x02\x82\x0b\x0c\x04\x04"; // DER encoding of OID 1.3.6.1.4.1.2.267.12.4.4 for MLDSA44-Ed25519
@@ -134,10 +134,10 @@ impl PartialEq for Signature {
 impl Eq for Signature {}
 
 impl VerifyingKey {
-    pub fn to_bytes(&self) -> [u8; VERIFYING_KEY_SIZE] {
-        let mut buf = [0u8; VERIFYING_KEY_SIZE];
-        buf[..ML_PK_SIZE].copy_from_slice(self.vk_ml.as_ref());
-        buf[ML_PK_SIZE..].copy_from_slice(&self.vk_ed.to_bytes());
+    pub fn to_bytes(&self) -> [u8; COMPSIG44_VERIFYING_KEY_SIZE] {
+        let mut buf = [0u8; COMPSIG44_VERIFYING_KEY_SIZE];
+        buf[..MLDSA44_PK_SIZE].copy_from_slice(self.vk_ml.as_ref());
+        buf[MLDSA44_PK_SIZE..].copy_from_slice(&self.vk_ed.to_bytes());
         buf
     }
 
@@ -166,15 +166,15 @@ impl VerifyingKey {
     }
 }
 
-impl TryFrom<&[u8; VERIFYING_KEY_SIZE]> for VerifyingKey {
+impl TryFrom<&[u8; COMPSIG44_VERIFYING_KEY_SIZE]> for VerifyingKey {
     type Error = CompositeError;
 
-    fn try_from(bytes: &[u8; VERIFYING_KEY_SIZE]) -> Result<Self, Self::Error> {
-        let vk_ml_bytes: [u8; ML_PK_SIZE] = bytes[..ML_PK_SIZE]
+    fn try_from(bytes: &[u8; COMPSIG44_VERIFYING_KEY_SIZE]) -> Result<Self, Self::Error> {
+        let vk_ml_bytes: [u8; MLDSA44_PK_SIZE] = bytes[..MLDSA44_PK_SIZE]
             .try_into()
             .map_err(|_| CompositeError::InvalidVerifyingKeyBytes)?;
         let vk_ml = MLDSA44VerificationKey::new(vk_ml_bytes);
-        let vk_ed_bytes: [u8; ED_PK_SIZE] = bytes[ML_PK_SIZE..].try_into().unwrap();
+        let vk_ed_bytes: [u8; ED25519_PK_SIZE] = bytes[MLDSA44_PK_SIZE..].try_into().unwrap();
         let vk_ed = EdVerifyingKey::try_from(&vk_ed_bytes[..])
             .map_err(|_| CompositeError::InvalidVerifyingKeyBytes)?;
         Ok(Self { vk_ml, vk_ed })
@@ -185,10 +185,10 @@ impl TryFrom<&[u8]> for VerifyingKey {
     type Error = CompositeError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != VERIFYING_KEY_SIZE {
+        if bytes.len() != COMPSIG44_VERIFYING_KEY_SIZE {
             return Err(CompositeError::InvalidVerifyingKeyBytes);
         }
-        let bytes_array: &[u8; VERIFYING_KEY_SIZE] = bytes.try_into().unwrap();
+        let bytes_array: &[u8; COMPSIG44_VERIFYING_KEY_SIZE] = bytes.try_into().unwrap();
         Self::try_from(bytes_array)
     }
 }
@@ -245,10 +245,10 @@ impl SigningKey {
 }
 
 impl Signature {
-    pub fn to_bytes(&self) -> [u8; SIGNATURE_SIZE] {
-        let mut buf = [0u8; SIGNATURE_SIZE];
-        buf[..ML_SIG_SIZE].copy_from_slice(self.sig_ml.as_ref());
-        buf[ML_SIG_SIZE..].copy_from_slice(&self.sig_ed.to_bytes());
+    pub fn to_bytes(&self) -> [u8; COMPSIG44_SIGNATURE_SIZE] {
+        let mut buf = [0u8; COMPSIG44_SIGNATURE_SIZE];
+        buf[..MLDSA44_SIG_SIZE].copy_from_slice(self.sig_ml.as_ref());
+        buf[MLDSA44_SIG_SIZE..].copy_from_slice(&self.sig_ed.to_bytes());
         buf
     }
 }
@@ -257,16 +257,16 @@ impl TryFrom<&[u8]> for Signature {
     type Error = CompositeError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != SIGNATURE_SIZE {
+        if bytes.len() != COMPSIG44_SIGNATURE_SIZE {
             return Err(CompositeError::InvalidSignatureLength);
         }
 
-        let mut sig_ml_bytes = [0u8; ML_SIG_SIZE];
-        sig_ml_bytes.copy_from_slice(&bytes[..ML_SIG_SIZE]);
+        let mut sig_ml_bytes = [0u8; MLDSA44_SIG_SIZE];
+        sig_ml_bytes.copy_from_slice(&bytes[..MLDSA44_SIG_SIZE]);
         let sig_ml = MLDSA44Signature::new(sig_ml_bytes);
 
-        let mut sig_ed_bytes = [0u8; ED_SIG_SIZE];
-        sig_ed_bytes.copy_from_slice(&bytes[ML_SIG_SIZE..]);
+        let mut sig_ed_bytes = [0u8; ED25519_SIG_SIZE];
+        sig_ed_bytes.copy_from_slice(&bytes[MLDSA44_SIG_SIZE..]);
         let sig_ed = EdSignature::try_from(sig_ed_bytes.as_ref())
             .map_err(|_| CompositeError::InvalidSignatureBytes)?;
 
@@ -274,10 +274,10 @@ impl TryFrom<&[u8]> for Signature {
     }
 }
 
-impl TryFrom<&[u8; SIGNATURE_SIZE]> for Signature {
+impl TryFrom<&[u8; COMPSIG44_SIGNATURE_SIZE]> for Signature {
     type Error = CompositeError;
 
-    fn try_from(bytes: &[u8; SIGNATURE_SIZE]) -> Result<Self, Self::Error> {
+    fn try_from(bytes: &[u8; COMPSIG44_SIGNATURE_SIZE]) -> Result<Self, Self::Error> {
         Self::try_from(bytes.as_slice())
     }
 }
