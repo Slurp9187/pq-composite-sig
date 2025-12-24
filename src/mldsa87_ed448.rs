@@ -185,7 +185,7 @@ impl SigningKey {
 
         let ed_seed_bytes = self.sk_ed.to_bytes();
         let ed_seed_array = Zeroizing::new((&*ed_seed_bytes).try_into().unwrap());
-        let kp_ml = expand_seed(&*ed_seed_array);
+        let kp_ml = expand_seed(&ed_seed_array);
         let sk_ml = kp_ml.signing_key;
 
         let ph_m = compute_ph(message);
@@ -205,7 +205,7 @@ impl SigningKey {
     pub fn verifying_key(&self) -> VerifyingKey {
         let ed_seed_bytes = self.sk_ed.to_bytes();
         let ed_seed_array = Zeroizing::new((&*ed_seed_bytes).try_into().unwrap());
-        let kp_ml = expand_seed(&*ed_seed_array);
+        let kp_ml = expand_seed(&ed_seed_array);
         let vk_ed = self.sk_ed.verifying_key();
         VerifyingKey {
             vk_ml: kp_ml.verification_key,

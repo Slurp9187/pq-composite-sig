@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use pq_composite_sig::mldsa44_ed25519::{Signature, SigningKey, VerifyingKey};
+use pq_composite_sig::mldsa44_ed25519::SigningKey;
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Value;
 use std::fs;
@@ -50,7 +50,7 @@ fn test_composite_vectors() {
         let expected_pk_b64 = test["pk"].as_str().expect("Missing 'pk'");
         let expected_sig_b64 = test["s"].as_str().expect("Missing 's'");
         let expected_pk = STANDARD.decode(expected_pk_b64).expect("Invalid pk base64");
-        let expected_sig = STANDARD.decode(expected_sig_b64).expect("Invalid s base64");
+        let _expected_sig = STANDARD.decode(expected_sig_b64).expect("Invalid s base64");
 
         // Load signing key from composite sk bytes (independent keys for vector)
         let sk = SigningKey::from_bytes(sk_seed);
